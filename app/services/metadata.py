@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import ipaddress
 import logging
+import os
 import socket
 import subprocess
 import tempfile
@@ -11,6 +13,27 @@ import httpx
 import yt_dlp
 
 logger = logging.getLogger(__name__)
+
+# Write cookies file once at module load if YTDLP_COOKIES env var is set
+_COOKIES_PATH: str | None = None
+_cookies_b64 = os.environ.get("YTDLP_COOKIES")
+if _cookies_b64:
+    try:
+        _cookies_file = Path(tempfile.gettempdir()) / "ytdlp_cookies.txt"
+        _cookies_file.write_bytes(base64.b64decode(_cookies_b64))
+        _COOKIES_PATH = str(_cookies_file)
+        logger.info("yt-dlp cookies loaded from YTDLP_COOKIES env var")
+    except Exception:
+        logger.warning("Failed to decode YTDLP_COOKIES env var")
+
+
+def _ydl_opts(**extra) -> dict:
+    """Build yt-dlp options with cookies if available."""
+    opts = {"quiet": True, "no_warnings": True}
+    if _COOKIES_PATH:
+        opts["cookiefile"] = _COOKIES_PATH
+    opts.update(extra)
+    return opts
 
 
 def _is_safe_url(url: str) -> bool:
@@ -37,12 +60,7 @@ def detect_platform(url: str) -> str:
 
 def _fetch_info(url: str) -> dict:
     """Extract metadata from a reel URL using yt-dlp (blocking)."""
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "extract_flat": False,
-        "writesubtitles": False,
-    }
+    opts = _ydl_opts(extract_flat=False, writesubtitles=False)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     return {
@@ -62,19 +80,17 @@ def _fetch_info(url: str) -> dict:
 def _download_audio(url: str, output_dir: str) -> str | None:
     """Download audio as mp3 using yt-dlp (blocking). Returns path to mp3 file."""
     output_path = str(Path(output_dir) / "audio.%(ext)s")
-    opts = {
-        "format": "bestaudio/best",
-        "outtmpl": output_path,
-        "postprocessors": [
+    opts = _ydl_opts(
+        format="bestaudio/best",
+        outtmpl=output_path,
+        postprocessors=[
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
                 "preferredquality": "128",
             }
         ],
-        "quiet": True,
-        "no_warnings": True,
-    }
+    )
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
@@ -95,12 +111,7 @@ def _download_audio(url: str, output_dir: str) -> str | None:
 def _download_video(url: str, output_dir: str) -> str | None:
     """Download video for frame extraction (blocking). Returns path to video file."""
     output_path = str(Path(output_dir) / "video.%(ext)s")
-    opts = {
-        "format": "best[height<=720]/best",
-        "outtmpl": output_path,
-        "quiet": True,
-        "no_warnings": True,
-    }
+    opts = _ydl_opts(format="best[height<=720]/best", outtmpl=output_path)
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
