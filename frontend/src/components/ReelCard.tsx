@@ -16,9 +16,9 @@ export default function ReelCard({ reel }: { reel: ReelResponse }) {
     >
       {/* Thumbnail */}
       <div className="h-20 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-        {!thumbFailed ? (
+        {!thumbFailed && reel.thumbnail_url ? (
           <img
-            src={`/api/reels/${reel.id}/thumbnail`}
+            src={reel.thumbnail_url}
             alt=""
             className="h-full w-full object-cover"
             onError={handleError}

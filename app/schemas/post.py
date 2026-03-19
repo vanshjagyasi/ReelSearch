@@ -28,6 +28,7 @@ class ReelResponse(BaseModel):
     url: str
     platform: str | None = None
     status: str
+    thumbnail_url: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

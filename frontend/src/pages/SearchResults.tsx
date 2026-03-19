@@ -91,7 +91,7 @@ function ResultCard({ result: r }: { result: SearchResult }) {
       className="flex gap-3 rounded-xl border border-gray-200 bg-white p-3 transition hover:border-indigo-200 hover:shadow-sm"
     >
       {/* Thumbnail */}
-      <Thumbnail postId={r.post_id} />
+      <Thumbnail thumbnailUrl={r.thumbnail_url} />
 
       {/* Content */}
       <div className="flex min-w-0 flex-1 flex-col justify-between">
@@ -153,16 +153,16 @@ function ResultCard({ result: r }: { result: SearchResult }) {
   );
 }
 
-function Thumbnail({ postId }: { postId: string }) {
+function Thumbnail({ thumbnailUrl }: { thumbnailUrl: string | null }) {
   const [failed, setFailed] = useState(false);
 
   const handleError = useCallback(() => setFailed(true), []);
 
   return (
     <div className="h-24 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 md:h-28 md:w-24">
-      {!failed ? (
+      {!failed && thumbnailUrl ? (
         <img
-          src={`/api/reels/${postId}/thumbnail`}
+          src={thumbnailUrl}
           alt=""
           className="h-full w-full object-cover"
           onError={handleError}

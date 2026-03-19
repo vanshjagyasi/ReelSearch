@@ -1,9 +1,7 @@
 import asyncio
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,26 +88,6 @@ async def delete_reel(
     await db.delete(post)
     await db.commit()
 
-
-@router.get("/reels/{reel_id}/thumbnail")
-async def get_reel_thumbnail(
-    reel_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Serve the locally-cached thumbnail for a reel."""
-    result = await db.execute(
-        select(Post).where(Post.id == reel_id, Post.user_id == current_user.id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Reel not found")
-    thumb_dir = Path("/data/thumbnails")
-    for ext in ("jpg", "webp", "png"):
-        path = thumb_dir / f"{reel_id}.{ext}"
-        if path.exists():
-            media_types = {"jpg": "image/jpeg", "webp": "image/webp", "png": "image/png"}
-            return FileResponse(path, media_type=media_types[ext])
-    raise HTTPException(status_code=404, detail="Thumbnail not found")
 
 
 @router.get("/reels/{reel_id}/status")

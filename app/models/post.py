@@ -45,6 +45,12 @@ class Post(Base):
         server_default=func.now(), onupdate=func.now()
     )
 
+    @property
+    def thumbnail_url(self) -> str | None:
+        if isinstance(self.metadata_, dict):
+            return self.metadata_.get("thumbnail")
+        return None
+
     __table_args__ = (
         UniqueConstraint("url", "user_id", name="uq_post_url_user"),
         Index("idx_posts_user_id", "user_id"),

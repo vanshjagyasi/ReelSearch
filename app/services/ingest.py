@@ -3,7 +3,6 @@ import shutil
 import tempfile
 import time
 import uuid
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +11,7 @@ from app.db.database import async_session_maker
 from app.models.post import Post
 from app.services.embedding import build_embedding_text, generate_embedding
 from app.services.extraction import extract_entities
-from app.services.metadata import download_media, download_thumbnail, fetch_metadata
+from app.services.metadata import download_media, fetch_metadata
 from app.services.resolution import resolve_and_persist_entities
 from app.services.transcription import transcribe_audio
 from app.services.vision import describe_frames
@@ -61,16 +60,6 @@ async def ingest_reel(post_id: uuid.UUID) -> None:
         logger.info("[%s] Fetching metadata...", post_id)
         info = await fetch_metadata(url)
         logger.info("[%s] Metadata fetched in %.1fs", post_id, time.time() - step_start)
-
-        # Download thumbnail to persistent storage
-        thumb_url = (info.get("metadata") or {}).get("thumbnail")
-        if thumb_url:
-            thumb_dir = Path("/data/thumbnails")
-            thumb_dir.mkdir(parents=True, exist_ok=True)
-            thumb_path = thumb_dir / f"{post_id}.jpg"
-            saved_path = await download_thumbnail(thumb_url, str(thumb_path))
-            if saved_path:
-                logger.info("[%s] Thumbnail saved to %s", post_id, saved_path)
 
         async with async_session_maker() as session:
             await _update_post(
