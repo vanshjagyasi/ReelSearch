@@ -1,0 +1,34 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
+# Docker
+pgdata/
+
+# Claude
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Thumbnails
+thumbnails/
