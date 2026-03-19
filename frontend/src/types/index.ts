@@ -19,6 +19,7 @@ export interface ReelResponse {
   url: string;
   platform: string | null;
   status: string;
+  thumbnail_url: string | null;
   created_at: string;
 }
 
