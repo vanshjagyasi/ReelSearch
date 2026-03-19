@@ -18,4 +18,4 @@ COPY . .
 ENV PORT=8000
 EXPOSE ${PORT}
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host :: --port ${PORT:-8000}"]
+CMD ["sh", "-c", "sysctl -w net.ipv6.bindv6only=0 2>/dev/null; alembic upgrade head && uvicorn app.main:app --host :: --port ${PORT:-8000}"]
