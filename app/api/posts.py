@@ -92,8 +92,17 @@ async def delete_reel(
 
 
 @router.get("/reels/{reel_id}/thumbnail")
-async def get_reel_thumbnail(reel_id: UUID):
-    """Serve the locally-cached thumbnail for a reel (public, no auth)."""
+async def get_reel_thumbnail(
+    reel_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Serve the locally-cached thumbnail for a reel."""
+    result = await db.execute(
+        select(Post).where(Post.id == reel_id, Post.user_id == current_user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Reel not found")
     thumb_dir = Path("/data/thumbnails")
     for ext in ("jpg", "webp", "png"):
         path = thumb_dir / f"{reel_id}.{ext}"
@@ -140,7 +149,6 @@ async def get_stats(
     entity_count = await db.execute(
         select(func.count()).select_from(Entity).where(Entity.user_id == current_user.id)
     )
-    total_users = await db.execute(select(func.count()).select_from(User))
 
     return {
         "reels": {
@@ -151,5 +159,4 @@ async def get_stats(
             "total": sum(by_status.values()),
         },
         "entities": entity_count.scalar(),
-        "total_users": total_users.scalar(),
     }

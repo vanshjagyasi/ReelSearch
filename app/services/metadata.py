@@ -1,13 +1,28 @@
 import asyncio
+import ipaddress
 import logging
+import socket
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 import yt_dlp
 
 logger = logging.getLogger(__name__)
+
+
+def _is_safe_url(url: str) -> bool:
+    """Block private IPs and non-HTTP(S) schemes to prevent SSRF."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    try:
+        ip = ipaddress.ip_address(socket.gethostbyname(parsed.hostname))
+        return ip.is_global
+    except (ValueError, socket.gaierror):
+        return True  # Allow unresolvable hostnames (CDN domains)
 
 
 def detect_platform(url: str) -> str:
@@ -143,6 +158,9 @@ def _extract_frames(video_path: str, output_dir: str, num_frames: int = 3) -> li
 def _download_thumbnail(thumbnail_url: str, dest_path: str) -> str | None:
     """Download a thumbnail image. Returns actual saved path (extension may differ)."""
     if not thumbnail_url:
+        return None
+    if not _is_safe_url(thumbnail_url):
+        logger.warning("Blocked unsafe thumbnail URL: %s", thumbnail_url)
         return None
     try:
         with httpx.Client(timeout=15, follow_redirects=True) as client:
