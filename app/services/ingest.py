@@ -11,7 +11,7 @@ from app.db.database import async_session_maker
 from app.models.post import Post
 from app.services.embedding import build_embedding_text, generate_embedding
 from app.services.extraction import extract_entities
-from app.services.metadata import download_media, fetch_metadata
+from app.services.metadata import download_media, download_thumbnail_b64, fetch_metadata
 from app.services.resolution import resolve_and_persist_entities
 from app.services.transcription import transcribe_audio
 from app.services.vision import describe_frames
@@ -61,13 +61,21 @@ async def ingest_reel(post_id: uuid.UUID) -> None:
         info = await fetch_metadata(url)
         logger.info("[%s] Metadata fetched in %.1fs", post_id, time.time() - step_start)
 
+        # For Instagram, download and compress thumbnail before CDN URL expires
+        metadata = info.get("metadata") or {}
+        if info.get("platform") == "instagram" and metadata.get("thumbnail"):
+            thumb_b64 = await download_thumbnail_b64(metadata["thumbnail"])
+            if thumb_b64:
+                metadata["thumbnail"] = thumb_b64
+                logger.info("[%s] Instagram thumbnail saved as base64", post_id)
+
         async with async_session_maker() as session:
             await _update_post(
                 session, post_id,
                 caption=info.get("caption"),
                 creator=info.get("creator"),
                 platform=info.get("platform"),
-                metadata_=info.get("metadata"),
+                metadata_=metadata,
             )
 
         # --- Step 2: Download audio + video, extract frames ---

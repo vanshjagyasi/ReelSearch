@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import io
 import ipaddress
 import logging
 import os
@@ -11,6 +12,7 @@ from urllib.parse import urlparse
 
 import httpx
 import yt_dlp
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +70,18 @@ def _fetch_info(url: str) -> dict:
     opts = _ydl_opts(extract_flat=False, writesubtitles=False)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
+
+    thumbnail = info.get("thumbnail")
+    logger.debug("yt-dlp thumbnail for %s: %s", url, thumbnail)
+    logger.debug("yt-dlp thumbnails list: %s", info.get("thumbnails"))
+
     return {
         "caption": info.get("description", ""),
         "creator": info.get("uploader", ""),
         "platform": detect_platform(url),
         "metadata": {
             "duration": info.get("duration"),
-            "thumbnail": info.get("thumbnail"),
+            "thumbnail": thumbnail,
             "like_count": info.get("like_count"),
             "view_count": info.get("view_count"),
             "platform_id": info.get("id"),
@@ -171,8 +178,8 @@ def _extract_frames(video_path: str, output_dir: str, num_frames: int = 3) -> li
     return frames
 
 
-def _download_thumbnail(thumbnail_url: str, dest_path: str) -> str | None:
-    """Download a thumbnail image. Returns actual saved path (extension may differ)."""
+def _download_thumbnail_b64(thumbnail_url: str) -> str | None:
+    """Download a thumbnail, resize to 320x320, return as base64 data URI."""
     if not thumbnail_url:
         return None
     if not _is_safe_url(thumbnail_url):
@@ -182,16 +189,16 @@ def _download_thumbnail(thumbnail_url: str, dest_path: str) -> str | None:
         with httpx.Client(timeout=15, follow_redirects=True) as client:
             resp = client.get(thumbnail_url)
             resp.raise_for_status()
-            # Detect actual format from content-type
-            content_type = resp.headers.get("content-type", "")
-            ext_map = {"image/webp": ".webp", "image/png": ".png", "image/jpeg": ".jpg"}
-            ext = ext_map.get(content_type.split(";")[0].strip(), ".jpg")
-            # Replace extension in dest_path
-            actual_path = str(Path(dest_path).with_suffix(ext))
-            Path(actual_path).write_bytes(resp.content)
-            return actual_path
+        img = Image.open(io.BytesIO(resp.content))
+        img = img.convert("RGB")
+        img.thumbnail((320, 320))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80)
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        logger.debug("Thumbnail compressed to %d bytes", buf.tell())
+        return f"data:image/jpeg;base64,{b64}"
     except Exception:
-        logger.warning("Failed to download thumbnail from %s", thumbnail_url)
+        logger.warning("Failed to download/compress thumbnail from %s", thumbnail_url)
         return None
 
 
@@ -200,9 +207,9 @@ async def fetch_metadata(url: str) -> dict:
     return await asyncio.to_thread(_fetch_info, url)
 
 
-async def download_thumbnail(thumbnail_url: str, dest_path: str) -> str | None:
-    """Async wrapper: download thumbnail image. Returns saved path or None."""
-    return await asyncio.to_thread(_download_thumbnail, thumbnail_url, dest_path)
+async def download_thumbnail_b64(thumbnail_url: str) -> str | None:
+    """Async wrapper: download Instagram thumbnail, resize, return as base64 data URI."""
+    return await asyncio.to_thread(_download_thumbnail_b64, thumbnail_url)
 
 
 async def download_media(url: str, work_dir: str) -> dict:

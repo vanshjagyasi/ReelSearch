@@ -15,6 +15,7 @@ openai>=1.50.0
 
 # Media processing
 yt-dlp>=2024.0.0
+Pillow>=10.0.0
 
 # Utils
 pydantic>=2.0.0

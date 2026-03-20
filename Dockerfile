@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 # Install system dependencies (ffmpeg for yt-dlp audio/video processing)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends ffmpeg libjpeg62-turbo && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
