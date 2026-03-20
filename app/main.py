@@ -9,7 +9,7 @@ from app.api import auth, entities, posts, search
 from app.config import settings
 from app.db.database import engine
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
 logger = logging.getLogger(__name__)
 
 
