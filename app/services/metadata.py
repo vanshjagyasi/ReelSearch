@@ -22,9 +22,11 @@ if _cookies_b64:
         _cookies_file = Path(tempfile.gettempdir()) / "ytdlp_cookies.txt"
         _cookies_file.write_bytes(base64.b64decode(_cookies_b64))
         _COOKIES_PATH = str(_cookies_file)
-        logger.info("yt-dlp cookies loaded from YTDLP_COOKIES env var")
-    except Exception:
-        logger.warning("Failed to decode YTDLP_COOKIES env var")
+        logger.info("yt-dlp cookies loaded from YTDLP_COOKIES env var (%d bytes)", _cookies_file.stat().st_size)
+    except Exception as e:
+        logger.warning("Failed to decode YTDLP_COOKIES env var: %s", e)
+else:
+    logger.warning("YTDLP_COOKIES env var is NOT set — yt-dlp will run without cookies")
 
 
 def _ydl_opts(**extra) -> dict:
@@ -32,6 +34,9 @@ def _ydl_opts(**extra) -> dict:
     opts = {"quiet": True, "no_warnings": True}
     if _COOKIES_PATH:
         opts["cookiefile"] = _COOKIES_PATH
+        logger.debug("Using cookies from %s", _COOKIES_PATH)
+    else:
+        logger.debug("No cookies available for yt-dlp")
     opts.update(extra)
     return opts
 
