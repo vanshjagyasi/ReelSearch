@@ -12,7 +12,7 @@ from app.models.post import Post
 from app.models.user import User
 from app.schemas.post import ReelDetail, ReelListResponse, ReelResponse, SaveReelRequest
 from app.services.ingest import ingest_reel
-from app.services.metadata import detect_platform
+from app.services.metadata import clean_url, detect_platform
 
 router = APIRouter()
 
@@ -24,15 +24,17 @@ async def save_reel(
     db: AsyncSession = Depends(get_db),
 ):
     """Save a new reel URL for processing."""
+    url = clean_url(request.url)
+
     result = await db.execute(
-        select(Post).where(Post.url == request.url, Post.user_id == current_user.id)
+        select(Post).where(Post.url == url, Post.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="This URL has already been saved")
 
     post = Post(
-        url=request.url,
-        platform=detect_platform(request.url),
+        url=url,
+        platform=detect_platform(url),
         user_id=current_user.id,
     )
     db.add(post)

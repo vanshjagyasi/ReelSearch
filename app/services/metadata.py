@@ -55,6 +55,13 @@ def _is_safe_url(url: str) -> bool:
         return True  # Allow unresolvable hostnames (CDN domains)
 
 
+def clean_url(url: str) -> str:
+    """Strip tracking/share query params, keep only the core reel URL."""
+    parsed = urlparse(url)
+    # Keep just scheme + host + path, drop all query params and fragments
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
+
+
 def detect_platform(url: str) -> str:
     if "instagram.com" in url:
         return "instagram"
