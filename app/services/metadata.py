@@ -18,27 +18,33 @@ logger = logging.getLogger(__name__)
 
 # Write cookies file once at module load if YTDLP_COOKIES env var is set
 _COOKIES_PATH: str | None = None
+_cookies_file = Path(tempfile.gettempdir()) / "ytdlp_cookies.txt"
 _cookies_b64 = os.environ.get("YTDLP_COOKIES")
 if _cookies_b64:
     try:
-        _cookies_file = Path(tempfile.gettempdir()) / "ytdlp_cookies.txt"
         _cookies_file.write_bytes(base64.b64decode(_cookies_b64))
         _COOKIES_PATH = str(_cookies_file)
         logger.info("yt-dlp cookies loaded from YTDLP_COOKIES env var (%d bytes)", _cookies_file.stat().st_size)
     except Exception as e:
         logger.warning("Failed to decode YTDLP_COOKIES env var: %s", e)
 else:
+    # Remove any stale cookie file from a previous run
+    _cookies_file.unlink(missing_ok=True)
     logger.warning("YTDLP_COOKIES env var is NOT set — yt-dlp will run without cookies")
 
 
+_PROXY_URL = os.environ.get("YTDLP_PROXY")
+if _PROXY_URL:
+    logger.info("yt-dlp proxy configured")
+
+
 def _ydl_opts(**extra) -> dict:
-    """Build yt-dlp options with cookies if available."""
+    """Build yt-dlp options with cookies and proxy if available."""
     opts = {"quiet": True, "no_warnings": True}
     if _COOKIES_PATH:
         opts["cookiefile"] = _COOKIES_PATH
-        logger.debug("Using cookies from %s", _COOKIES_PATH)
-    else:
-        logger.debug("No cookies available for yt-dlp")
+    if _PROXY_URL:
+        opts["proxy"] = _PROXY_URL
     opts.update(extra)
     return opts
 
