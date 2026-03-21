@@ -45,6 +45,7 @@ def _ydl_opts(**extra) -> dict:
         opts["cookiefile"] = _COOKIES_PATH
     if _PROXY_URL:
         opts["proxy"] = _PROXY_URL
+        opts["nocheckcertificate"] = True
     opts.update(extra)
     return opts
 
